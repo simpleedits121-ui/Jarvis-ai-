@@ -219,8 +219,11 @@ private fun HomePanel(onOpenChat: () -> Unit) {
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
-                Text("3D avatar slot · Coming next",
-                    color = Muted, fontSize = 11.sp)
+                Text(
+    "Anime companion · Local character engine",
+    color = Muted,
+    fontSize = 11.sp
+)
                 Spacer(Modifier.height(16.dp))
 
                 Surface(
