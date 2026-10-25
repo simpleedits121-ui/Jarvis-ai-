@@ -22,7 +22,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
+      
+
+      - name: Install Gradle 8.9
+        run: |      - name: Set up Android SDK
         shell: bash
         run: |
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
@@ -41,11 +44,10 @@ jobs:
             exit 1
           fi
 
-          yes | "$SDKMANAGER_BIN" --licenses >/dev/null
+          # Accept SDK licenses without triggering a broken-pipe error
+          set +o pipefail
+          yes "" 2>/dev/null | "$SDKMANAGER_BIN" --licenses >/dev/null || true
           "$SDKMANAGER_BIN" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Install Gradle 8.9
-        run: |
           curl -fsSL https://services.gradle.org/distributions/gradle-8.9-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
           echo "/tmp/gradle-8.9/bin" >> "$GITHUB_PATH"
