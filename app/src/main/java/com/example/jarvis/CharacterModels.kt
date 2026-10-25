@@ -36,4 +36,3 @@ data class CharacterReply(
     val gesture: String? = null,
     val intensity: Float = 0.6f
 )
-
