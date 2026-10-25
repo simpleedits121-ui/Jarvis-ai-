@@ -4,11 +4,16 @@ package com.example.jarvis
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -17,7 +22,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +40,7 @@ private val Muted = Color(0xFF8CA9BF)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
@@ -55,62 +64,68 @@ private fun JarvisDesktop() {
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
-            .padding(10.dp)
+            .padding(8.dp)
     ) {
-        // Compact desktop sidebar
         Column(
             modifier = Modifier
-                .width(66.dp)
+                .width(58.dp)
                 .fillMaxHeight()
-                .background(Panel, RoundedCornerShape(18.dp))
-                .padding(vertical = 12.dp),
+                .background(Panel, RoundedCornerShape(16.dp))
+                .padding(vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("J", color = Cyan, fontSize = 30.sp,
+            Text("J", color = Cyan, fontSize = 28.sp,
                 fontWeight = FontWeight.Bold)
+
             HorizontalDivider(color = Color(0xFF263B4D))
 
-            listOf("Home", "Chat", "Models", "Tools", "Settings").forEach {
-                nav ->
-                NavigationTile(
-                    label = nav,
-                    selected = selected == nav,
-                    onClick = { selected = nav }
-                )
-            }
+            listOf("Home", "Chat", "Models", "Tools", "Settings")
+                .forEach { page ->
+                    NavigationTile(
+                        label = page,
+                        selected = selected == page,
+                        onClick = { selected = page }
+                    )
+                }
 
             Spacer(Modifier.weight(1f))
-            Text("v0.2", color = Muted, fontSize = 10.sp)
+            Text("v0.3", color = Muted, fontSize = 10.sp)
         }
 
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
 
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
         ) {
-            // Desktop title bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Panel, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("JARVIS WORKSPACE",
+                    Text(
+                        "JARVIS WORKSPACE",
                         color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold)
-                    Text("LOCAL DESKTOP COMPANION",
-                        color = Muted, fontSize = 9.sp)
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "LOCAL DESKTOP COMPANION",
+                        color = Muted,
+                        fontSize = 8.sp
+                    )
                 }
+
                 Box {
                     TextButton(onClick = { menuOpen = true }) {
                         Text("•••", color = Cyan, fontSize = 18.sp)
                     }
+
                     DropdownMenu(
                         expanded = menuOpen,
                         onDismissRequest = { menuOpen = false }
@@ -129,23 +144,25 @@ private fun JarvisDesktop() {
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
             when (selected) {
                 "Chat" -> ChatPanel()
                 "Models" -> InfoPanel(
                     "MODEL MANAGER",
-                    "Local model installation and switching will be added here."
+                    "Offline GGUF model installation and switching are planned."
                 )
                 "Tools" -> InfoPanel(
                     "DEVICE TOOLS",
-                    "Camera, app launching, calling and typing controls will be added here."
+                    "Device actions and app controls are not connected yet."
                 )
                 "Settings" -> InfoPanel(
                     "SETTINGS",
-                    "Companion size, position, voice and appearance settings will be added here."
+                    "Character, voice and appearance controls will be added here."
                 )
-                else -> HomePanel(onOpenChat = { selected = "Chat" })
+                else -> HomePanel(
+                    onOpenChat = { selected = "Chat" }
+                )
             }
         }
     }
@@ -168,98 +185,147 @@ private fun NavigationTile(
     Surface(
         onClick = onClick,
         color = if (selected) Color(0xFF16445B) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.size(54.dp)
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.size(50.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(symbol, color = Cyan, fontSize = 21.sp)
-            Text(label, color = if (selected) Color.White else Muted,
-                fontSize = 8.sp)
+            Text(symbol, color = Cyan, fontSize = 20.sp)
+            Text(
+                label,
+                color = if (selected) Color.White else Muted,
+                fontSize = 7.sp
+            )
         }
     }
 }
 
 @Composable
 private fun HomePanel(onOpenChat: () -> Unit) {
+    var mood by remember { mutableStateOf("Idle") }
+
+    val transition = rememberInfiniteTransition(label = "character")
+    val breathing by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.012f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathing"
+    )
+
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Companion stage: placeholder for future 3D character
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
             color = Color(0xFF0B1A2A),
-            shape = RoundedCornerShape(22.dp)
+            shape = RoundedCornerShape(20.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .background(Color(0xFF123D55), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("J", color = Cyan, fontSize = 56.sp,
-                        fontWeight = FontWeight.Light)
-                }
-
-                Spacer(Modifier.height(14.dp))
-                Text("YOUR COMPANION",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(5.dp))
                 Text(
-    "Anime companion · Local character engine",
-    color = Muted,
-    fontSize = 11.sp
-)
-                Spacer(Modifier.height(16.dp))
+                    "JARVIS • $mood",
+                    color = Cyan,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-                Surface(
-                    color = Color(0xFF102E36),
-                    shape = RoundedCornerShape(20.dp)
+                Spacer(Modifier.height(8.dp))
+
+                Image(
+                    painter = painterResource(
+                        id = R.drawable.character_sheet
+                    ),
+                    contentDescription = "JARVIS anime scientist character sheet",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .scale(breathing),
+                    contentScale = ContentScale.Fit
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    "YOUR ANIME COMPANION",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    "Local character engine",
+                    color = Muted,
+                    fontSize = 10.sp
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text("●  SYSTEM ONLINE",
-                        color = Cyan,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(
-                            horizontal = 14.dp, vertical = 9.dp
-                        )
-                    )
+                    listOf("Idle", "Listen", "Think", "Sleep").forEach { action ->
+                        Button(
+                            onClick = {
+                                mood = when (action) {
+                                    "Listen" -> "Listening"
+                                    "Think" -> "Thinking"
+                                    "Sleep" -> "Sleeping"
+                                    else -> "Idle"
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(
+                                horizontal = 2.dp,
+                                vertical = 8.dp
+                            )
+                        ) {
+                            Text(action, fontSize = 10.sp)
+                        }
+                    }
                 }
             }
         }
 
         Surface(
             color = Panel,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(Modifier.padding(14.dp)) {
-                Text("QUICK ACCESS",
-                    color = Muted, fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(10.dp))
+            Column(Modifier.padding(12.dp)) {
+                Text(
+                    "QUICK ACCESS",
+                    color = Muted,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(8.dp))
+
                 Button(
                     onClick = onOpenChat,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Open JARVIS Chat")
                 }
+
                 Text(
-                    "Local AI and device actions are not connected yet.",
-                    color = Muted, fontSize = 10.sp
+                    "Chat currently uses the demo response engine.",
+                    color = Muted,
+                    fontSize = 10.sp
                 )
             }
         }
@@ -277,8 +343,12 @@ private fun InfoPanel(title: String, description: String) {
             Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(title, color = Cyan, fontSize = 16.sp,
-                fontWeight = FontWeight.Bold)
+            Text(
+                title,
+                color = Cyan,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
             Text(description, color = Color.White, fontSize = 13.sp)
         }
     }
@@ -301,8 +371,12 @@ private fun ChatPanel() {
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("CONVERSATION", color = Cyan, fontSize = 12.sp,
-            fontWeight = FontWeight.Bold)
+        Text(
+            "CONVERSATION",
+            color = Cyan,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
 
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -316,12 +390,18 @@ private fun ChatPanel() {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp)) {
-                        Text(if (message.fromUser) "YOU" else "JARVIS",
-                            color = Cyan, fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold)
+                        Text(
+                            if (message.fromUser) "YOU" else "JARVIS",
+                            color = Cyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(Modifier.height(4.dp))
-                        Text(message.text, color = Color.White,
-                            fontSize = 13.sp)
+                        Text(
+                            message.text,
+                            color = Color.White,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
@@ -339,13 +419,17 @@ private fun ChatPanel() {
                 onValueChange = { draft = it },
                 modifier = Modifier.weight(1f).padding(vertical = 10.dp),
                 textStyle = androidx.compose.ui.text.TextStyle(
-                    color = Color.White, fontSize = 14.sp
+                    color = Color.White,
+                    fontSize = 14.sp
                 ),
                 decorationBox = { inner ->
                     Box {
                         if (draft.isEmpty()) {
-                            Text("Talk to JARVIS...",
-                                color = Muted, fontSize = 13.sp)
+                            Text(
+                                "Talk to JARVIS...",
+                                color = Muted,
+                                fontSize = 13.sp
+                            )
                         }
                         inner()
                     }
@@ -365,8 +449,11 @@ private fun ChatPanel() {
                     draft = ""
                 }
             }) {
-                Icon(Icons.Default.Send, contentDescription = "Send",
-                    tint = Cyan)
+                Icon(
+                    Icons.Default.Send,
+                    contentDescription = "Send",
+                    tint = Cyan
+                )
             }
         }
     }
